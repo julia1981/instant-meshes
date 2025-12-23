@@ -12,6 +12,7 @@
 */
 
 #include "batch.h"
+#include "headless.h"
 #include "viewer.h"
 #include "serializer.h"
 #include <thread>
@@ -26,10 +27,12 @@ int main(int argc, char **argv) {
     std::vector<std::string> args;
     bool extrinsic = true, dominant = false, align_to_boundaries = false;
     bool fullscreen = false, help = false, deterministic = false, compat = false;
+    bool headless = false;
     int rosy = 4, posy = 4, face_count = -1, vertex_count = -1;
     uint32_t knn_points = 10, smooth_iter = 2;
     Float crease_angle = -1, scale = -1;
     std::string batchOutput;
+    std::string headlessMode, headlessInput, headlessState, headlessConstraints, headlessOutputState, headlessOutputMesh;
     #if defined(__APPLE__)
         bool launched_from_finder = false;
     #endif
@@ -38,6 +41,8 @@ int main(int argc, char **argv) {
         for (int i=1; i<argc; ++i) {
             if (strcmp("--fullscreen", argv[i]) == 0 || strcmp("-F", argv[i]) == 0) {
                 fullscreen = true;
+            } else if (strcmp("--headless", argv[i]) == 0) {
+                headless = true;
             } else if (strcmp("--help", argv[i]) == 0 || strcmp("-h", argv[i]) == 0) {
                 help = true;
             } else if (strcmp("--deterministic", argv[i]) == 0 || strcmp("-d", argv[i]) == 0) {
@@ -108,6 +113,42 @@ int main(int argc, char **argv) {
                     return -1;
                 }
                 batchOutput = argv[i];
+            } else if (strcmp("--mode", argv[i]) == 0) {
+                if (++i >= argc) {
+                    cerr << "Missing headless mode argument!" << endl;
+                    return -1;
+                }
+                headlessMode = argv[i];
+            } else if (strcmp("--input", argv[i]) == 0) {
+                if (++i >= argc) {
+                    cerr << "Missing headless input argument!" << endl;
+                    return -1;
+                }
+                headlessInput = argv[i];
+            } else if (strcmp("--state", argv[i]) == 0) {
+                if (++i >= argc) {
+                    cerr << "Missing headless state argument!" << endl;
+                    return -1;
+                }
+                headlessState = argv[i];
+            } else if (strcmp("--constraints", argv[i]) == 0) {
+                if (++i >= argc) {
+                    cerr << "Missing constraints file argument!" << endl;
+                    return -1;
+                }
+                headlessConstraints = argv[i];
+            } else if (strcmp("--output-state", argv[i]) == 0) {
+                if (++i >= argc) {
+                    cerr << "Missing output state argument!" << endl;
+                    return -1;
+                }
+                headlessOutputState = argv[i];
+            } else if (strcmp("--output-mesh", argv[i]) == 0) {
+                if (++i >= argc) {
+                    cerr << "Missing output mesh argument!" << endl;
+                    return -1;
+                }
+                headlessOutputMesh = argv[i];
             } else if (strcmp("--dominant", argv[i]) == 0 || strcmp("-D", argv[i]) == 0) {
                 dominant = true;
             } else if (strcmp("--compat", argv[i]) == 0 || strcmp("-C", argv[i]) == 0) {
@@ -148,6 +189,13 @@ int main(int argc, char **argv) {
         cout << "Syntax: " << argv[0] << " [options] <input mesh / point cloud / application state snapshot>" << endl;
         cout << "Options:" << endl;
         cout << "   -o, --output <output>     Writes to the specified PLY/OBJ output file in batch mode" << endl;
+        cout << "       --headless            Enable headless GUI-parity processing" << endl;
+        cout << "       --mode <m>            Headless mode: orientation|position|applyConstraints|extract" << endl;
+        cout << "       --input <mesh>        Headless mesh input (orientation)" << endl;
+        cout << "       --state <state>       Headless state input (position/applyConstraints/extract)" << endl;
+        cout << "       --constraints <file>  Headless constraints file (IMC1)" << endl;
+        cout << "       --output-state <out>  Headless state output (PLY)" << endl;
+        cout << "       --output-mesh <out>   Headless mesh output (PLY/OBJ)" << endl;
         cout << "   -t, --threads <count>     Number of threads used for parallel computations" << endl;
         cout << "   -d, --deterministic       Prefer (slower) deterministic algorithms" << endl;
         cout << "   -c, --crease <degrees>    Dihedral angle threshold for creases" << endl;
@@ -165,6 +213,35 @@ int main(int argc, char **argv) {
         cout << "   -F, --fullscreen          Open a full-screen window" << endl;
         cout << "   -h, --help                Display this message" << endl;
         return -1;
+    }
+
+    if (headless) {
+        try {
+            tbb::task_scheduler_init init(nprocs == -1 ? tbb::task_scheduler_init::automatic : nprocs);
+
+            HeadlessOptions opt;
+            opt.mode = headlessMode.empty() ? "orientation" : headlessMode;
+            opt.inputPath = headlessInput;
+            opt.statePath = headlessState;
+            opt.constraintsPath = headlessConstraints;
+            opt.outputStatePath = headlessOutputState;
+            opt.outputMeshPath = headlessOutputMesh;
+            opt.rosy = rosy;
+            opt.posy = posy;
+            opt.extrinsic = extrinsic;
+            opt.deterministic = deterministic;
+            opt.alignToBoundaries = align_to_boundaries;
+            opt.dominant = dominant;
+            opt.smoothIter = (int) smooth_iter;
+            opt.creaseAngle = crease_angle;
+            opt.scale = scale;
+            opt.faceCount = face_count;
+            opt.vertexCount = vertex_count;
+            return headless_process(opt);
+        } catch (const std::exception &e) {
+            cerr << "Headless error: " << e.what() << endl;
+            return -1;
+        }
     }
 
     if (args.size() == 0)

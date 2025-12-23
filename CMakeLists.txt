@@ -86,7 +86,7 @@ if(MSVC)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /W4")
   endif()
 elseif (CMAKE_CXX_COMPILER_ID MATCHES "Clang" OR CMAKE_CXX_COMPILER_ID MATCHES "GNU")
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wno-unused-parameter")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wno-unused-parameter -Wno-int-in-bool-context -Wno-deprecated-copy")
   if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-gnu-anonymous-struct -Wno-c99-extensions -Wno-nested-anon-types")
   endif()
@@ -153,6 +153,7 @@ add_executable(InstantMeshes MACOSX_BUNDLE
   src/widgets.h src/widgets.cpp
   src/aabb.h
   src/main.cpp src/common.h
+  src/headless.h src/headless.cpp
   src/meshio.h src/meshio.cpp
   src/normal.h src/normal.cpp
   src/adjacency.h src/adjacency.cpp
